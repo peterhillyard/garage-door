@@ -1,13 +1,16 @@
+from dataclasses import dataclass
 from enum import Enum, auto
+import json
+import os
 import time
 from typing import List
 import requests
 import datetime
-from pydantic_settings import BaseSettings
 
 MINUTES_TO_SECONDS = 60
 
-class Settings(BaseSettings):
+@dataclass
+class Settings:
     shelly_endpoint_uri: str
     shelly_auth_key: str
     shelly_device_id: str
@@ -17,6 +20,30 @@ class Settings(BaseSettings):
     twilio_phone_number: str
     recipient_phone_numbers: List[str]
     notification_interval_minutes: int
+
+def get_settings() -> Settings:
+    shelly_endpoint_uri = os.getenv("shelly_endpoint_uri")
+    shelly_auth_key = os.getenv("shelly_auth_key")
+    shelly_device_id = os.getenv("shelly_device_id")
+    twilio_endpoint_uri = os.getenv("twilio_endpoint_uri")
+    twilio_acct_sid = os.getenv("twilio_acct_sid")
+    twilio_auth_key = os.getenv("twilio_auth_key")
+    twilio_phone_number = os.getenv("twilio_phone_number")
+    notification_interval_minutes = int(os.getenv("notification_interval_minutes"))
+    recipient_phone_numbers = json.loads(os.getenv("recipient_phone_numbers"))
+
+    return Settings(
+        shelly_endpoint_uri,
+        shelly_auth_key,
+        shelly_device_id,
+        twilio_endpoint_uri,
+        twilio_acct_sid,
+        twilio_auth_key,
+        twilio_phone_number,
+        recipient_phone_numbers,
+        notification_interval_minutes,
+    )
+
 
 class GarageDoorState(Enum):
     OPEN = auto()
@@ -60,7 +87,7 @@ def send_alert_sms(twilio_endpoint_uri: str, twilio_acct_sid: str, twilio_auth_k
         return
 
 def start_loop():
-    settings = Settings()
+    settings = get_settings()
     print("running")
     while True:
         garage_state = reqest_garage_door_state(settings.shelly_endpoint_uri, settings.shelly_device_id, settings.shelly_auth_key)
