@@ -1,0 +1,9 @@
+export shelly_endpoint_uri="some_url"
+export shelly_auth_key="abcd"
+export shelly_device_id="abcd"
+export twilio_endpoint_uri="some_url"
+export twilio_acct_sid="abc"
+export twilio_auth_key="abc"
+export twilio_phone_number="+12345678900"
+export notification_interval_minutes="6"
+export recipient_phone_numbers='["+12345678900", "+11234567890"]'
