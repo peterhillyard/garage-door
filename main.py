@@ -90,8 +90,7 @@ def start_loop():
     settings = get_settings()
     print("running")
     while True:
-        # time.sleep(settings.notification_interval_minutes * MINUTES_TO_SECONDS)
-        time.sleep(settings.notification_interval_minutes)
+        time.sleep(settings.notification_interval_minutes * MINUTES_TO_SECONDS)
         garage_state = reqest_garage_door_state(settings.shelly_endpoint_uri, settings.shelly_device_id, settings.shelly_auth_key)
 
         if garage_state in [GarageDoorState.CLOSED, GarageDoorState.UNKNOWN] or not is_observation_time():
