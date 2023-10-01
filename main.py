@@ -52,7 +52,7 @@ class GarageDoorState(Enum):
 
 def is_observation_time():
     current_datetime = datetime.datetime.now()
-    return True if current_datetime.hour < 6 or current_datetime.hour >= 17 else False
+    return True if current_datetime.hour < 6 or current_datetime.hour >= 22 else False
 
 def reqest_garage_door_state(shelly_endpoint_uri: str, shelly_device_id: str, shelly_auth_key: str) -> GarageDoorState:
     headers = {'Content-Type': 'application/x-www-form-urlencoded'}
@@ -90,15 +90,17 @@ def start_loop():
     settings = get_settings()
     print("running")
     while True:
+        # time.sleep(settings.notification_interval_minutes * MINUTES_TO_SECONDS)
+        time.sleep(settings.notification_interval_minutes)
         garage_state = reqest_garage_door_state(settings.shelly_endpoint_uri, settings.shelly_device_id, settings.shelly_auth_key)
 
-        if not (garage_state == GarageDoorState.OPEN and is_observation_time()):
+        if garage_state in [GarageDoorState.CLOSED, GarageDoorState.UNKNOWN] or not is_observation_time():
             continue
-        
+
         for recipient_phone_number in settings.recipient_phone_numbers:
-            send_alert_sms(settings.twilio_endpoint_uri, settings.twilio_acct_sid, settings.twilio_auth_key, settings.twilio_phone_number, recipient_phone_number)
+            print("send txt")
+            # send_alert_sms(settings.twilio_endpoint_uri, settings.twilio_acct_sid, settings.twilio_auth_key, settings.twilio_phone_number, recipient_phone_number)
         
-        time.sleep(settings.notification_interval_minutes * MINUTES_TO_SECONDS)
 
 def main():
     start_loop()
