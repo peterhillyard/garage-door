@@ -14,33 +14,30 @@ class Settings:
     shelly_endpoint_uri: str
     shelly_auth_key: str
     shelly_device_id: str
-    twilio_endpoint_uri: str
-    twilio_acct_sid: str
-    twilio_auth_key: str
-    twilio_phone_number: str
-    recipient_phone_numbers: List[str]
+    brevo_url: str
+    brevo_api_key: str
+    sender_email: str
+    recipient_email_addresses: List[str]
     notification_interval_minutes: int
 
 def get_settings() -> Settings:
     shelly_endpoint_uri = os.getenv("shelly_endpoint_uri")
     shelly_auth_key = os.getenv("shelly_auth_key")
     shelly_device_id = os.getenv("shelly_device_id")
-    twilio_endpoint_uri = os.getenv("twilio_endpoint_uri")
-    twilio_acct_sid = os.getenv("twilio_acct_sid")
-    twilio_auth_key = os.getenv("twilio_auth_key")
-    twilio_phone_number = os.getenv("twilio_phone_number")
+    brevo_url = os.getenv("brevo_url")
+    brevo_api_key = os.getenv("brevo_api_key")
+    sender_email = os.getenv("sender_email")
     notification_interval_minutes = int(os.getenv("notification_interval_minutes"))
-    recipient_phone_numbers = json.loads(os.getenv("recipient_phone_numbers"))
+    recipient_email_addresses = json.loads(os.getenv("recipient_email_addresses"))
 
     return Settings(
         shelly_endpoint_uri,
         shelly_auth_key,
         shelly_device_id,
-        twilio_endpoint_uri,
-        twilio_acct_sid,
-        twilio_auth_key,
-        twilio_phone_number,
-        recipient_phone_numbers,
+        brevo_url,
+        brevo_api_key,
+        sender_email,
+        recipient_email_addresses,
         notification_interval_minutes,
     )
 
@@ -54,12 +51,12 @@ def is_observation_time():
     current_datetime = datetime.datetime.now()
     return True if current_datetime.hour < 6 or current_datetime.hour >= 22 else False
 
-def reqest_garage_door_state(shelly_endpoint_uri: str, shelly_device_id: str, shelly_auth_key: str) -> GarageDoorState:
+def reqest_garage_door_state(settings: Settings) -> GarageDoorState:
     headers = {'Content-Type': 'application/x-www-form-urlencoded'}
-    data = f'id={shelly_device_id}&auth_key={shelly_auth_key}'
+    data = f'id={settings.shelly_device_id}&auth_key={settings.shelly_auth_key}'
 
     try:
-        response = requests.post(f'{shelly_endpoint_uri}/device/status', headers=headers, data=data)
+        response = requests.post(f'{settings.shelly_endpoint_uri}/device/status', headers=headers, data=data)
         response.raise_for_status()
     except requests.exceptions.RequestException as err:
         return GarageDoorState.UNKNOWN
@@ -67,20 +64,35 @@ def reqest_garage_door_state(shelly_endpoint_uri: str, shelly_device_id: str, sh
     response_json = response.json()
     switch_status = response_json["data"]["device_status"]["inputs"][0]["input"]
 
-    return GarageDoorState.CLOSED if switch_status == 0 else GarageDoorState.OPEN
+    return GarageDoorState.OPEN if switch_status == 1 else GarageDoorState.CLOSED
 
-def send_alert_sms(twilio_endpoint_uri: str, twilio_acct_sid: str, twilio_auth_key: str, twilio_phone_number: str, recipient_phone_number: str):
+def send_alert_sms(settings: Settings, recipient_email_address: str):
     data = {
-        'From': twilio_phone_number,
-        'Body': 'The garage door is open',
-        'To': recipient_phone_number,
+        "sender": {
+            "name": "Open Garage Checker",
+            "email": settings.sender_email,
+        },
+        "to": [
+            {
+                "name": "Pete Hillyard",
+                "email": recipient_email_address,
+            }
+        ],
+        "subject": "Garage is open",
+        "htmlContent": f"<html><head></head><body><p>The garage is open at {datetime.datetime.now()}</p></body></html>"
+    }
+
+    headers = {
+        "accept": "application/json",
+        "api-key": settings.brevo_api_key,
+        "content-type": "application/json",
     }
 
     try:
         response = requests.post(
-            f'{twilio_endpoint_uri}/{twilio_acct_sid}/Messages.json',
-            data=data,
-            auth=(twilio_acct_sid, twilio_auth_key),
+            settings.brevo_url,
+            json=data,
+            headers=headers,
         )
         response.raise_for_status()
     except requests.exceptions.RequestException as err:
@@ -91,15 +103,17 @@ def start_loop():
     print("running")
     while True:
         time.sleep(settings.notification_interval_minutes * MINUTES_TO_SECONDS)
-        garage_state = reqest_garage_door_state(settings.shelly_endpoint_uri, settings.shelly_device_id, settings.shelly_auth_key)
+        # time.sleep(settings.notification_interval_minutes)
+        garage_state = reqest_garage_door_state(settings)
 
+        print(garage_state, datetime.datetime.now().hour, datetime.datetime.now().minute)
         if garage_state in [GarageDoorState.CLOSED, GarageDoorState.UNKNOWN] or not is_observation_time():
             continue
 
-        for recipient_phone_number in settings.recipient_phone_numbers:
-            print("send txt")
-            # send_alert_sms(settings.twilio_endpoint_uri, settings.twilio_acct_sid, settings.twilio_auth_key, settings.twilio_phone_number, recipient_phone_number)
-        
+        for recipient_email_address in settings.recipient_email_addresses:
+            print("send txt", garage_state, datetime.datetime.now().hour, datetime.datetime.now().minute)
+            send_alert_sms(settings, recipient_email_address)
+
 
 def main():
     start_loop()
