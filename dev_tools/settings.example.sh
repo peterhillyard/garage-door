@@ -6,3 +6,4 @@ export brevo_api_key="some key"
 export notification_interval_minutes="6"
 export sender_email=test@gmail.com
 export recipient_email_addresses='["1234567890@vtext.com"]'
+export awake_start_end_hours='[6, 22]'
