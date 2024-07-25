@@ -162,3 +162,5 @@ cython_debug/
 # repo stuff
 .vscode/
 dev_tools/settings.sh
+garage-checker.service
+
